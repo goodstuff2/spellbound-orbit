@@ -2,7 +2,7 @@
 // ---------- static game data ----------
 const W = 480, H = 270, CX = 240, CY = 135;
 const MAX_WAVE = 30;
-const TUNE = { hp: 1.2, vol: 1 };
+const TUNE = { hp: 3.8, vol: 1 };
 
 const HEROES = {
   pyro: {
@@ -97,9 +97,33 @@ const RELICS = [
   { id: 'stars', n: 'Starfall', i: '🌠', r: 2, max: 4, t: 'Stars fall on foes regularly' },
   { id: 'phoenix', n: 'Phoenix Feather', i: '🦅', r: 2, max: 1, t: 'Earth is reborn once at 50% HP' },
   { id: 'ally', n: "Wizard's Oath", i: '🧙', r: 2, max: 3, t: 'A free wizard joins you' },
+  { id: 'bond', n: 'Soul Bond', i: '🐾', r: 0, max: 8, t: 'Familiars deal +25% damage' },
+  { id: 'runes', n: 'Rune Magnet', i: '🧲', r: 0, max: 4, t: 'Runes drop 60% more often' },
+  { id: 'legion', n: 'Call of the Legion', i: '👥', r: 1, max: 4, t: '+1 familiar for a random wizard' },
+  { id: 'pact', n: 'Familiar Pact', i: '📜', r: 1, max: 4, t: 'All familiars gain +1 power level' },
+  { id: 'ascend', n: 'Ascension', i: '🌟', r: 2, max: 3, t: 'A random familiar gains a skill rank' },
   { id: 'midas', n: 'Midas Touch', i: '👑', r: 2, max: 3, t: '+50% gold, +10% damage' }
 ];
 const RELIC = {}; RELICS.forEach(r => RELIC[r.id] = r);
+
+// Familiars: every wizard has summons that fight beside them.
+// skill ranks: 1 = special ability, 2 = +40% attack speed, 3 = periodic nova
+const SUMMONS = {
+  pyro: { name: 'Fire Imp', spr: 'sPyro', dmg: 6, cd: 1.0, range: 100, col: '#ff8a2e', sk: ['Shots explode', 'Faster casting', 'Inferno nova'] },
+  cryo: { name: 'Frost Sprite', spr: 'sCryo', dmg: 5, cd: 0.9, range: 100, col: '#7fdcff', sk: ['Shots may freeze', 'Faster casting', 'Blizzard nova'] },
+  storm: { name: 'Spark Wisp', spr: 'sStorm', dmg: 6, cd: 1.1, range: 95, col: '#ffe94a', sk: ['+2 chain jumps', 'Faster casting', 'Storm nova'] },
+  necro: { name: 'Bone Knight', spr: 'sNecro', dmg: 8, cd: 1.0, range: 150, col: '#6dff8a', sk: ['Charge explodes', 'Faster charging', 'Grave nova'] },
+  sage: { name: 'Star Orb', spr: 'sSage', dmg: 7, cd: 1.2, range: 120, col: '#ff9bf2', sk: ['+3 pierce', 'Faster casting', 'Nebula nova'] },
+  druid: { name: 'Thorn Sprout', spr: 'sDruid', dmg: 3.5, cd: 0.8, range: 90, col: '#9aff5a', sk: ['3 thorns, heals more', 'Faster casting', 'Bloom nova'] },
+  chrono: { name: 'Clockwork', spr: 'sChrono', dmg: 6, cd: 1.6, range: 55, col: '#41e8d6', sk: ['Pulse hits harder', 'Faster pulses', 'Time nova'] },
+  summoner: { name: 'Drake Whelp', spr: 'sSummoner', dmg: 3.5, cd: 0.7, range: 80, col: '#ff5a3a', sk: ['5 flames per breath', 'Faster breath', 'Dragonfire nova'] }
+};
+const PICKUPS = {
+  power: { n: 'POWER RUNE', c: '#ff6a5a', w: 40 },
+  legion: { n: 'LEGION RUNE', c: '#5ae8ff', w: 26 },
+  skill: { n: 'SKILL RUNE', c: '#ffd23f', w: 20 },
+  frenzy: { n: 'FRENZY RUNE', c: '#ff9bf2', w: 14 }
+};
 
 const PERKS = [
   { id: 'hp', n: 'Stone Foundations', t: '+12 Earth HP per level', max: 8, cost: l => 25 + l * 20 },

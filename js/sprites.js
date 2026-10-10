@@ -163,6 +163,17 @@ ART.fdragon = makeSprite([
   '.......K.KK.KKK.....'
 ], PP({ R: '#d8382a', O: '#ff9a3a', W: '#ffb04a', Y: '#ffe14a' }));
 
+const SUM_SPR = {
+  sPyro: makeSprite(['..K.K..', '.KRKRK.', 'KRRRRRK', 'KRYRYRK', 'KRRRRRK', '.KRRRK.', '..K.K..'], PP({ R: '#ff6a2a', Y: '#ffe14a' })),
+  sCryo: makeSprite(['WW...WW', 'WWKKKWW', '.KBEBK.', '..KBK..', '.WKBKW.', '...K...'], PP({ B: '#7fdcff', W: '#e8fbff' })),
+  sStorm: makeSprite(['K.....K', 'KYK.KYK', '.KYYYK.', 'KYEYEYK', '.KYYYK.', '..K.K..'], PP({ Y: '#ffe94a' })),
+  sNecro: makeSprite(['.KKKKK.', 'KWWWWWK', 'KWEWEWK', '.KWWWK.', 'KWKWKWK', '.K.W.K.', '..K.K..'], PP({ W: '#e8e2d0', E: '#6dff8a' })),
+  sSage: makeSprite(['...K...', '..KPK..', 'KKPWPKK', 'KPWWWPK', 'KKPWPKK', '..KPK..', '...K...'], PP({ P: '#ff9bf2' })),
+  sDruid: makeSprite(['.GK.KG.', 'GGGKGGG', '.KGGGK.', '..KGK..', '.KBBBK.', '.KBBBK.', '..KKK..'], PP({ G: '#6ae04a', B: '#8a5a2b' })),
+  sChrono: makeSprite(['.K.K.K.', 'KKTTTKK', '.TWTWT.', 'KTTWTTK', '.TWTWT.', 'KKTTTKK', '.K.K.K.'], PP({ T: '#41e8d6', W: '#ffffff' })),
+  sSummoner: makeSprite(['.K...K.', 'KRKKKRK', 'KRRRRRK', 'KRYRYRK', '.KRORK.', 'KRRRRRK', '.K.K.K.'], PP({ R: '#d8382a', Y: '#ffe14a', O: '#ff9a3a' }))
+};
+
 // ---------- hero sprites ----------
 const HERO_SPR = {};
 for (const id in HERO_ART) HERO_SPR[id] = makeSprite(HERO_ART[id].t, PP(HERO_ART[id].p));

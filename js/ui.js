@@ -23,6 +23,7 @@ const UI = {
     b.style.setProperty('--bc', col); b.innerHTML = `<div class="t">${t}</div>${s ? `<div class="s">${s}</div>` : ''}`;
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
   },
+  msg(t, col) { const e = $('pickmsg'); e.textContent = t; e.style.color = col; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); },
   castName(t, col) { const e = $('casttxt'); e.textContent = t.toUpperCase() + '!'; e.style.color = col; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show'); },
   toast(msg, ms) {
     const t = $('toast'); t.textContent = msg; t.classList.remove('hide'); clearTimeout(UI._tt); UI._tt = setTimeout(() => t.classList.add('hide'), ms || 6000);
@@ -88,6 +89,7 @@ const UI = {
       ◆ Cast each wizard's <b style="color:#9ae0ff">SPELL</b>: <b style="color:#ffe14a">Q W E R T Y</b> or click the icons. Aimed spells hit the mouse cursor.<br>
       ◆ Kills charge <b style="color:#ff9bf2">CATACLYSM</b> (<b style="color:#ffe14a">F</b>): wipes the sky and resets all spells.<br>
       ◆ <b style="color:#ffe14a">SPACE</b> starts the next wave. Between waves pick a <b style="color:#ffe14a">relic</b>, upgrade wizards, hire more (<b style="color:#ffe14a">B</b> = shop).<br>
+      ◆ Every wizard has <b style="color:#5ae8ff">FAMILIARS</b> that fight too. Foes drop <b style="color:#ff9bf2">RUNES</b>: hover them to boost familiars (power, count, skills). Upgrade familiars in the shop.<br>
       ◆ <b style="color:#ffe14a">A</b> auto-casts spells. <b style="color:#ffe14a">G</b> changes speed. <b style="color:#ffe14a">P</b> pauses.<br>
       ◆ Survive <b style="color:#ff8a8a">30 waves</b>. Boss every 5th. Earn crystals to unlock wizards and boons.</div>
       <div class="row" style="margin-top:10px"><button data-act="menu">BACK</button></div>`);
@@ -152,7 +154,7 @@ const UI = {
     if (!shopEl.classList.contains('hide')) UI.shopFrame();
   },
   shopFrame() {
-    const key = G.heroes.map(h => h.id + h.lvl).join() + '|' + SAVE.unlocked.length + '|' + G.wave + '|' + (G.earth.hp >= G.earth.max);
+    const key = shopTab + '|' + G.heroes.map(h => h.id + h.lvl + '.' + h.sum.lvl + h.sum.n + h.sum.skill).join() + '|' + SAVE.unlocked.length + '|' + G.wave + '|' + (G.earth.hp >= G.earth.max);
     if (key !== lastShopKey) { lastShopKey = key; renderShop(); }
     shopEl.querySelectorAll('[data-cost]').forEach(b => {
       const dis = G.gold < +b.dataset.cost; if (b._d !== dis) { b._d = dis; b.classList.toggle('dis', dis); }
@@ -160,21 +162,32 @@ const UI = {
     const sg = $('shopgold'); if (sg) { const v = Math.floor(G.gold) + 'g'; if (sg.textContent !== v) sg.textContent = v; }
   }
 };
+let shopTab = 'wiz';
 function renderShop() {
-  let h = `<button class="x" data-act="shopclose">X</button><h3><span>WIZARDS</span><span id="shopgold" style="margin-right:14px">${Math.floor(G.gold)}g</span></h3>`;
-  G.heroes.forEach((hh, i) => {
-    const d = HEROES[hh.id], st = hstat(hh), max = hh.lvl >= 12;
-    h += `<div class="hrow"><canvas data-hero="${hh.id}"></canvas><div class="i"><span style="color:${d.col}">${d.name}</span> LV${hh.lvl}<small>DMG ${Math.round(st.dmg)} · ${(1 / st.cd).toFixed(1)}/s · RNG ${Math.round(st.range)}</small><small>✦ ${d.spell.name} ${Math.round(spellCd(hh))}s</small></div>${max ? '<button class="dis">MAX</button>' : `<button data-act="up:${i}" data-cost="${upCost(hh)}">UP ${upCost(hh)}g</button>`}</div>`;
-  });
-  const cand = SAVE.unlocked.filter(id => !G.heroes.some(x => x.id === id));
-  if (G.heroes.length < hmax) {
-    h += `<h4>RECRUIT WIZARD (${hireCost()}g)</h4>`;
-    if (!cand.length) h += `<div class="hrow"><div class="i"><small>NO WIZARDS LEFT. UNLOCK MORE IN THE GRIMOIRE.</small></div></div>`;
-    cand.forEach(id => { const d = HEROES[id]; h += `<div class="hrow"><canvas data-hero="${id}"></canvas><div class="i"><span style="color:${d.col}">${d.name}</span><small>${d.desc}</small></div><button data-act="hire:${id}" data-cost="${hireCost()}">HIRE</button></div>`; });
+  let h = `<button class="x" data-act="shopclose">X</button><h3><span id="shopgold">${Math.floor(G.gold)}g</span></h3>
+    <div class="tabs">${[['wiz', 'WIZARDS'], ['fam', 'FAMILIARS'], ['sup', 'SUPPLIES']].map(([k, n]) => `<button data-act="tab:${k}" class="${shopTab === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  if (shopTab === 'wiz') {
+    G.heroes.forEach((hh, i) => {
+      const d = HEROES[hh.id], st = hstat(hh), max = hh.lvl >= 12;
+      h += `<div class="hrow"><canvas data-hero="${hh.id}"></canvas><div class="i"><span style="color:${d.col}">${d.name}</span> LV${hh.lvl}<small>DMG ${Math.round(st.dmg)} · ${(1 / st.cd).toFixed(1)}/s · RNG ${Math.round(st.range)}</small></div>${max ? '<button class="dis">MAX</button>' : `<button data-act="up:${i}" data-cost="${upCost(hh)}">UP ${upCost(hh)}g</button>`}</div>`;
+    });
+    h += `<h4>LV5: +1 SHOT · LV10: +1 SHOT, SPELL CD -25%</h4>`;
+  } else if (shopTab === 'fam') {
+    G.heroes.forEach((hh, i) => {
+      const S = SUMMONS[hh.id], sm = hh.sum, b = (w, l) => { const c = sumCost(hh, w); return c ? `<button data-act="sum:${i}-${w}" data-cost="${c}">${l} ${c}g</button>` : `<button class="dis">${l} MAX</button>`; };
+      h += `<div class="hrow sub"><div class="i"><span style="color:${S.col}">${S.name}</span> LV${sm.lvl} x${sm.n} SK${sm.skill}</div><div class="btns" title="${sm.skill < 3 ? 'Next skill: ' + S.sk[sm.skill] : 'All skills unlocked'}">${b('pwr', 'PWR')}${b('num', 'NUM')}${b('skill', 'SKL')}</div></div>`;
+    });
+    h += `<h4>RUNES DROP FROM FOES. HOVER TO GRAB.</h4>`;
+  } else {
+    const cand = SAVE.unlocked.filter(id => !G.heroes.some(x => x.id === id));
+    if (G.heroes.length < hmax) {
+      h += `<h4>RECRUIT WIZARD (${hireCost()}g)</h4>`;
+      if (!cand.length) h += `<div class="hrow"><div class="i"><small>NO WIZARDS LEFT. UNLOCK MORE IN THE GRIMOIRE.</small></div></div>`;
+      cand.forEach(id => { const d = HEROES[id]; h += `<div class="hrow"><canvas data-hero="${id}"></canvas><div class="i"><span style="color:${d.col}">${d.name}</span><small>${d.desc}</small></div><button data-act="hire:${id}" data-cost="${hireCost()}">HIRE</button></div>`; });
+    } else h += `<h4>YOUR CIRCLE IS FULL (6)</h4>`;
+    h += `<h4>SUPPLIES</h4><div class="hrow"><div class="i">Mend Earth<small>+30 HP</small></div><button data-act="repair" data-cost="${repairCost()}">${repairCost()}g</button></div>
+        <div class="hrow"><div class="i">Mana Well<small>Refresh all spells</small></div><button data-act="well" data-cost="${wellCost()}">${wellCost()}g</button></div>`;
   }
-  h += `<h4>SUPPLIES</h4><div class="hrow"><div class="i">Mend Earth<small>+30 HP</small></div><button data-act="repair" data-cost="${repairCost()}">${repairCost()}g</button></div>
-        <div class="hrow"><div class="i">Mana Well<small>Refresh all spells</small></div><button data-act="well" data-cost="${wellCost()}">${wellCost()}g</button></div>
-        <h4>LV5: +1 SHOT · LV10: +1 SHOT, SPELL CD -25%</h4>`;
   const sc = shopEl.scrollTop; shopEl.innerHTML = h; paintIcons(shopEl); shopEl.scrollTop = sc;
   shopEl.querySelectorAll('[data-cost]').forEach(b => { b._d = undefined; });
 }
@@ -209,6 +222,8 @@ function act(a) {
     case 'cont': G.endless = true; G.paused = false; SND.startMusic(); UI.hideScreen(); G.cardsPending = true; UI.cards(rollCards(3)); break;
     case 'resume': togglePause(); break;
     case 'quit': G.paused = false; endRunOnce(false); G.on = false; UI.title(); break;
+    case 'tab': shopTab = v; lastShopKey = ''; sfx('click'); break;
+    case 'sum': { const [i, w] = v.split('-'); if (buySum(+i, w)) lastShopKey = ''; break; }
     case 'up': if (upgradeHero(+v)) { lastShopKey = ''; } break;
     case 'hire': if (hireHero(v)) { lastShopKey = ''; } break;
     case 'repair': if (repair()) lastShopKey = ''; break;
@@ -248,6 +263,7 @@ cv.addEventListener('pointerleave', () => { G.mouseIn = false; });
 cv.addEventListener('pointerdown', ev => {
   SND.init(); toGame(ev);
   if (ev.button === 2) { G.aim = null; return; }
+  if (G.on && !G.paused && collectAt(G.mx, G.my, 16)) return;
   if (G.on && G.aim != null && !G.paused) { castSpell(G.aim, G.mx, G.my); }
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -270,10 +286,14 @@ document.addEventListener('keydown', ev => {
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.on && !G.paused && !G.over) togglePause(); });
 
 function fit() {
-  const sw = innerWidth, sh = innerHeight; let s = Math.min(sw / W, sh / H);
+  const vv = window.visualViewport, sw = Math.floor(vv ? vv.width : innerWidth), sh = Math.floor(vv ? vv.height : innerHeight);
+  $('rotate').classList.toggle('show', sh > sw * 1.15 && sw < 900);
+  let s = Math.min(sw / W, sh / H);
   const f = Math.floor(s); if (f >= 2 && s - f < 0.35) s = f;
-  stage.style.transform = `scale(${s})`; stage.style.left = Math.round((sw - W * s) / 2) + 'px'; stage.style.top = Math.round((sh - H * s) / 2) + 'px';
+  stage.style.transform = `scale(${s})`; stage.style.left = Math.max(0, Math.round((sw - W * s) / 2)) + 'px'; stage.style.top = Math.max(0, Math.round((sh - H * s) / 2)) + 'px';
 }
-addEventListener('resize', fit); fit();
+addEventListener('resize', fit); if (window.visualViewport) visualViewport.addEventListener('resize', fit); addEventListener('orientationchange', fit); fit();
+// wait for the pixel font so layout is measured with the real glyph widths
+Promise.race([document.fonts ? document.fonts.load('8px PS2P') : Promise.resolve(), new Promise(r => setTimeout(r, 2500))]).then(() => stage.classList.remove('pre'));
 
 document.addEventListener('click', e => { if (e.target && e.target.blur && e.target.tagName === 'BUTTON') e.target.blur(); });

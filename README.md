@@ -10,6 +10,7 @@
 ## Features
 - **8 wizards**, each with a unique auto-attack and a screen-filling spell:
   Pyromancer (*Meteor Storm*), Frost Witch (*Blizzard*), Stormcaller (*Thunder Tempest*), Necromancer (*Soul Harvest*), Star Sage (*Black Hole*), Gaia Druid (*Gaia's Embrace*), Chronomancer (*Time Stop*), Dragon Caller (*Summon Dragon*)
+- **Familiars:** every wizard has summons that fight beside them (Fire Imp, Frost Sprite, Spark Wisp, Bone Knight, Star Orb, Thorn Sprout, Clockwork, Drake Whelp). Foes drop **runes** (hover to grab) that raise their power, count and skill ranks; upgrade them in the shop or via relics
 - **Arcane Cataclysm** ultimate, charged by kills: slow-motion charge-up, screen-wide blast, resets every cooldown
 - **30 waves + endless mode**, a boss every 5th wave (Demon Lord, Eye of the Void, Bone Wyrm… and the Void Emperor)
 - **Roguelite loop:** pick 1 of 3 relics after each wave (20 relics, 3 rarities), upgrade up to 6 wizards to level 12, recruit more, repair Earth

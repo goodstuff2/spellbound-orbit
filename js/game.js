@@ -14,11 +14,11 @@ function newRun(diffKey, startHero) {
   const D = DIFFS[diffKey];
   Object.assign(G, {
     on: true, over: false, dying: 0, won: false, endless: false, diffKey, D, t: 0, wave: 0, phase: 'inter',
-    gold: 40 + 25 * perk('gold'), earth: { hp: 100, max: 100, shield: 0, shieldT: 0, flash: 0, phoenix: false },
+    gold: 60 + 25 * perk('gold'), earth: { hp: 100, max: 100, shield: 0, shieldT: 0, flash: 0, phoenix: false },
     heroes: [], relics: {}, enemies: [], projs: [], eprojs: [], parts: [], pops: [], fx: [], actors: [],
     ult: perk('ult') * 8, ultCast: 0, timeStop: 0, shake: 0, flash: 0, flashCol: '#fff', slowmo: 1, speed: 1, paused: false,
     spawnQ: [], waveT: 0, kills: 0, bossesKilled: 0, aim: null, nextId: 1, rerolls: 0, auto: false, starT: 4,
-    goldEarned: 0, spellCasts: 0, boss: null, cardsPending: false, hurtT: 0, overShown: false, counted: false, paid: 0, winCounted: false, bossDef: null, _cards: null
+    minions: [], pickups: [], frenzy: 0, goldEarned: 0, spellCasts: 0, boss: null, cardsPending: false, hurtT: 0, overShown: false, counted: false, paid: 0, winCounted: false, bossDef: null, _cards: null
   });
   recalc();
   G.earth.hp = G.earth.max;
@@ -35,7 +35,8 @@ function recalc() {
     range: 1 + 0.1 * r('reach'), haste: 1 + 0.1 * r('haste'),
     crit: 0.05 + 0.08 * r('crit'), dbl: 0.12 * r('double'), burn: r('burn'), chill: r('chill'),
     chain: r('chain'), vamp: r('vamp'), siphon: 1 + 0.25 * r('siphon'), rift: 1 - 0.07 * r('rift'),
-    echo: 0.2 * r('echo'), stars: r('stars'), phoenix: r('phoenix')
+    echo: 0.2 * r('echo'), stars: r('stars'), phoenix: r('phoenix'),
+    sumDmg: 1 + 0.25 * r('bond'), rune: 1 + 0.6 * r('runes')
   };
   const mx = (100 + 12 * perk('hp') + 25 * r('hp')) * G.D.earth;
   G.earth.max = Math.round(mx);
@@ -44,17 +45,17 @@ const hmax = 6;
 function heroCount() { return G.heroes.length; }
 function addHero(id) {
   if (G.heroes.length >= hmax || G.heroes.some(h => h.id === id)) return false;
-  const h = { id, lvl: 1, cd: R(0, 0.5), scd: 0, ang: rnd() * TAU, x: CX, y: CY, castT: 0, face: 1, tx: 0, ty: 0 };
+  const h = { id, sum: { lvl: 1, n: 1, skill: 0 }, lvl: 1, cd: R(0, 0.5), scd: 0, ang: rnd() * TAU, x: CX, y: CY, castT: 0, face: 1, tx: 0, ty: 0 };
   G.heroes.push(h); UI.spellbar(); return true;
 }
 function hstat(h) {
   const a = HEROES[h.id].atk, L = h.lvl;
   return {
-    dmg: a.dmg * (1 + 0.3 * (L - 1)) * M.dmg, cd: a.cd / (M.haste * (1 + 0.04 * (L - 1))),
+    dmg: a.dmg * 1.25 * (1 + 0.3 * (L - 1)) * M.dmg, cd: a.cd / (M.haste * (1 + 0.04 * (L - 1))),
     range: a.range * M.range * (1 + 0.012 * (L - 1)), shots: 1 + (L >= 5 ? 1 : 0) + (L >= 10 ? 1 : 0), chains: (a.chains || 0) + (L >= 5 ? 1 : 0) + (L >= 10 ? 2 : 0)
   };
 }
-const spellPow = h => (1 + 0.14 * (h.lvl - 1)) * M.spell * M.dmg;
+const spellPow = h => 0.8 * (1 + 0.14 * (h.lvl - 1)) * M.spell * M.dmg;
 const spellCd = h => HEROES[h.id].spell.cd * M.cdMul * (h.lvl >= 10 ? 0.75 : 1);
 const upCost = h => Math.round(28 * Math.pow(1.5, h.lvl - 1));
 const HIRE = [0, 50, 130, 280, 520, 860];
@@ -97,7 +98,7 @@ function spawnPos(a) {
 }
 function spawnEnemy(tid, x, y, o) {
   o = o || {};
-  const d = ENEMIES[tid] || o.def, ws = waveScale(G.wave) * G.D.hp * TUNE.hp;
+  const d = ENEMIES[tid] || o.def, ws = waveScale(G.wave) * G.D.hp * (1 + (TUNE.hp - 1) * Math.min(1, G.wave / 18));
   const e = {
     id: G.nextId++, tid, d, x, y, hp: 0, mhp: 0, spd: d.spd * 1.25 * (1 + 0.008 * G.wave), r: d.r, armor: d.armor || 0,
     dmg: d.dmg * (1 + 0.035 * G.wave), gold: d.gold, flash: 0, slowF: 1, slowT: 0, burnT: 0, burnD: 0, rootT: 0,
@@ -125,7 +126,7 @@ function spawnBoss(def, tier, final) {
 function buildWave(n) {
   const q = [], avail = Object.keys(ENEMIES).filter(k => ENEMIES[k].minW <= n && ENEMIES[k].w > 0);
   const isBoss = n % 5 === 0;
-  let budget = 6 + n * 4.6 + n * n * 0.55; if (isBoss) budget *= 0.65; budget *= TUNE.vol;
+  let budget = 6 + n * 4.6 + n * n * 0.55; if (isBoss) budget *= 0.65; budget *= TUNE.vol * (n <= 3 ? 0.8 : 1);
   const len = Math.min(75, 20 + n * 2);
   G.waveLen = len;
   let guard = 0;
@@ -155,7 +156,8 @@ function startWave() {
   G.wave++; G.waveT = 0; G.phase = 'wave'; buildWave(G.wave);
   const isBoss = G.wave % 5 === 0;
   SND.setIntensity(isBoss ? 1 : (G.wave > 15 ? 1 : 0));
-  UI.banner('WAVE ' + G.wave, isBoss ? 'BOSS WAVE!' : G.wave === 1 ? 'DEFEND THE EARTH' : '', isBoss ? 'boss' : '');
+  const nf = Object.keys(ENEMIES).filter(k => ENEMIES[k].minW === G.wave).map(k => k.toUpperCase());
+  UI.banner('WAVE ' + G.wave, isBoss ? 'BOSS WAVE!' : nf.length ? 'NEW FOE: ' + nf.join(', ') : G.wave === 1 ? 'DEFEND THE EARTH' : '', isBoss ? 'boss' : '');
   sfx('wave'); UI.closeShop(); UI.hudDirty();
 }
 function waveCleared() {
@@ -163,7 +165,7 @@ function waveCleared() {
   const bonus = Math.round((10 + G.wave * 4) * G.D.gold); G.gold += bonus; G.goldEarned += bonus;
   G.earth.hp = Math.min(G.earth.max, G.earth.hp + G.earth.max * 0.08);
   G.ult = Math.min(100, G.ult + 8 + perk('ult') * 2);
-  sfx('clear');
+  sfx('clear'); { const a = rnd() * TAU, [px, py] = spawnPos(a); spawnPickup(px, py); }
   if (G.wave >= MAX_WAVE && !G.endless && !G.won) { G.won = true; return victory(); }
   UI.banner('WAVE ' + G.wave + ' CLEARED', '+' + bonus + ' GOLD', 'clear');
   G.cardsPending = true;
@@ -187,6 +189,9 @@ function takeRelic(r) {
   if (r.id === 'hp') G.earth.hp = Math.min(G.earth.max, G.earth.hp + 25);
   if (r.id === 'ally') { const c = allyCandidates(); if (c.length) addHero(c[Math.floor(rnd() * c.length)]); else G.gold += 150; }
   if (r.id === 'phoenix') G.earth.phoenix = true;
+  if (r.id === 'pact') G.heroes.forEach(h => { if (h.sum.lvl < SUM_MAX.lvl) applySum(h, 'pwr'); });
+  if (r.id === 'legion') { const c = G.heroes.filter(h => h.sum.n < SUM_MAX.n); if (c.length) applySum(c[Math.floor(rnd() * c.length)], 'num'); else G.gold += 80; }
+  if (r.id === 'ascend') { const c = G.heroes.filter(h => h.sum.skill < SUM_MAX.skill); if (c.length) applySum(c[Math.floor(rnd() * c.length)], 'skill'); else G.gold += 120; }
   G.cardsPending = false; UI.hudDirty(); UI.spellbar();
 }
 
@@ -228,6 +233,8 @@ function killE(e, o) {
   if (e.d.split) { for (let i = 0; i < 2; i++) { const s = spawnEnemy('slimeS', e.x + R(-6, 6), e.y + R(-6, 6), { noElite: true }); s.hp = s.mhp = s.mhp; } }
   if (M.vamp) G.earth.hp = Math.min(G.earth.max, G.earth.hp + 0.2 * M.vamp);
   if (M.chain && !(o && o.depth > 1)) boom(e.x, e.y, 26 + 3 * M.chain, (6 + G.wave * 1.6) * M.chain * M.dmg, '#ffb02e', { depth: ((o && o.depth) || 0) + 1, noproc: true, quiet: true });
+  if (e.boss) { for (let i = 0; i < 3; i++) spawnPickup(e.x + R(-12, 12), e.y + R(-12, 12)); }
+  else if (rnd() < (e.elite ? 0.45 : 0.03) * M.rune) spawnPickup(e.x, e.y);
   const necro = G.heroes.find(h => h.id === 'necro');
   if (necro && rnd() < 0.14 && !(o && o.soul)) spawnSoul(e.x, e.y, 10 * spellPow(necro) * 0.8);
 }
@@ -365,7 +372,7 @@ function pickTarget(h, st) {
   return best;
 }
 function proj(o) {
-  if (G.projs.length > 260) return;
+  if (G.projs.length > 420) return;
   o.hit = []; o.pierce = o.pierce || 0; o.life = o.life || 2; o.r = o.r || 3; G.projs.push(o);
 }
 function fire(h, t, st) {
@@ -424,7 +431,7 @@ function updProjs(dt) {
       const rr = e.r + p.r, dx = e.x - p.x, dy = e.y - p.y; if (dx * dx + dy * dy > rr * rr) continue;
       if (p.hit.indexOf(e.id) >= 0) continue;
       p.hit.push(e.id);
-      dmgE(e, p.dmg, { slow: p.slow, burn: p.burn, col: p.col, soul: p.soul });
+      dmgE(e, p.dmg, { slow: p.slow, burn: p.burn, col: p.col, soul: p.soul, root: p.root && rnd() < 0.3 ? p.root : 0, noproc: p.msum && rnd() < 0.5 });
       sfx('hit'); P(p.x, p.y, R(-30, 30), R(-30, 30), 0.25, '#fff', 1, 0, true);
       if (p.splash) boom(p.x, p.y, p.splash, p.dmg * 0.6, '#ff8a2e', { noproc: true, quiet: true, depth: 1 });
       if (p.pierce-- <= 0) { dead = true; break; }
@@ -505,6 +512,8 @@ function update(dt) {
     if (!G.spawnQ.length && !G.bossDef && !G.enemies.length) waveCleared();
   }
   updHeroes(dt);
+  updMinions(dt);
+  updPickups(dt);
   updEnemies(dt);
   updProjs(dt);
   updEBolts(dt);
@@ -536,6 +545,146 @@ function updFx(dt) {
   }
   for (let i = G.pops.length - 1; i >= 0; i--) { const p = G.pops[i]; p.t += dt; p.y -= 14 * dt; if (p.t > p.l) { G.pops[i] = G.pops[G.pops.length - 1]; G.pops.pop(); } }
   for (let i = G.fx.length - 1; i >= 0; i--) { const f = G.fx[i]; f.l -= dt; if (f.l <= 0) { G.fx[i] = G.fx[G.fx.length - 1]; G.fx.pop(); } }
+}
+
+// ---------- familiars (summons) ----------
+const SUM_MAX = { lvl: 10, n: 4, skill: 3 };
+function sumDmg(h) { return SUMMONS[h.id].dmg * (1 + 0.3 * (h.sum.lvl - 1)) * M.dmg * M.sumDmg * (G.frenzy > 0 ? 1.5 : 1); }
+function sumCost(h, w) {
+  const s = h.sum;
+  if (w === 'pwr') return s.lvl >= SUM_MAX.lvl ? 0 : Math.round(25 * Math.pow(1.5, s.lvl - 1));
+  if (w === 'num') return s.n >= SUM_MAX.n ? 0 : Math.round(60 * Math.pow(2, s.n - 1));
+  return s.skill >= SUM_MAX.skill ? 0 : Math.round(90 * Math.pow(2, s.skill));
+}
+function applySum(h, w) {
+  if (w === 'pwr') h.sum.lvl++; else if (w === 'num') h.sum.n++; else h.sum.skill++;
+  burst(h.x, h.y, 14, SUMMONS[h.id].col, 70, 0.6, 1, -20, true); ring(h.x, h.y, 18, SUMMONS[h.id].col, 0.4);
+  UI.hudDirty();
+}
+function buySum(i, w) {
+  const h = G.heroes[i]; if (!h) return false; const c = sumCost(h, w);
+  if (!c || G.gold < c) { sfx('deny'); return false; }
+  G.gold -= c; applySum(h, w); sfx('buy'); return true;
+}
+function nearestEnemy(x, y, range) {
+  let best = null, bd = range * range;
+  for (let i = 0; i < G.enemies.length; i++) { const e = G.enemies[i]; if (e.dead) continue; const d = (e.x - x) ** 2 + (e.y - y) ** 2; if (d < bd) { bd = d; best = e; } }
+  return best;
+}
+function chainZap(sx, sy, t, dmg, chains, col) {
+  const hit = new Set(); let cur = t, px = sx, py = sy;
+  for (let c = 0; c <= chains && cur; c++) {
+    lightning(px, py, cur.x, cur.y, col); hit.add(cur.id);
+    dmgE(cur, dmg * Math.pow(0.85, c), { col, noproc: c > 0 });
+    px = cur.x; py = cur.y;
+    let nx = null, nd = 4900;
+    for (const e of G.enemies) { if (e.dead || hit.has(e.id)) continue; const d = (e.x - px) ** 2 + (e.y - py) ** 2; if (d < nd) { nd = d; nx = e; } }
+    cur = nx;
+  }
+}
+function minionShoot(m, t, d, S, sk) {
+  const id = m.h.id, base = Math.atan2(t.y - m.y, t.x - m.x), mk = (a, o) => proj(Object.assign({ x: m.x, y: m.y, vx: Math.cos(a) * o.sp, vy: Math.sin(a) * o.sp, dmg: d, msum: true, col: S.col }, o));
+  if (id === 'pyro') { sfx('fire'); mk(base, { sp: 180, kind: 'fireball', splash: sk >= 1 ? 17 : 0, life: 1.1 }); }
+  else if (id === 'cryo') { sfx('frost'); mk(base, { sp: 200, kind: 'frost', slow: 0.6, root: sk >= 1 ? 1 : 0, life: 1.2 }); }
+  else if (id === 'storm') { sfx('zap'); chainZap(m.x, m.y, t, d, 1 + (sk >= 1 ? 2 : 0), '#fff59a'); }
+  else if (id === 'sage') { sfx('arcane'); mk(base, { sp: 250, kind: 'arcane', pierce: 1 + (sk >= 1 ? 3 : 0), life: 1.1, r: 4 }); }
+  else if (id === 'druid') { sfx('thorn'); const n = sk >= 1 ? 3 : 2; for (let i = 0; i < n; i++) mk(base + (i - (n - 1) / 2) * 0.2, { sp: 220, kind: 'thorn', life: 1, r: 2 }); G.earth.hp = Math.min(G.earth.max, G.earth.hp + (sk >= 1 ? 0.18 : 0.08)); }
+  else if (id === 'summoner') { sfx('flame'); const n = sk >= 1 ? 5 : 3; for (let i = 0; i < n; i++) mk(base + (i - (n - 1) / 2) * 0.16 + R(-0.05, 0.05), { sp: R(130, 170), kind: 'flame', pierce: 1, life: 0.45, r: 4, burn: 3 * (1 + G.wave * 0.1) }); }
+}
+function updMinions(dt) {
+  const fr = G.frenzy > 0; if (fr) G.frenzy -= dt;
+  const per = {};
+  G.heroes.forEach(h => { let cnt = 0; for (const m of G.minions) if (m.h === h) cnt++; while (cnt < h.sum.n) { G.minions.push({ h, x: h.x, y: h.y, ang: rnd() * TAU, cd: R(0.2, 1), st: 0, tg: null, k: 0, face: 1, nova: R(2, 5) }); cnt++; } });
+  for (const m of G.minions) {
+    const h = m.h, S = SUMMONS[h.id], hi = G.heroes.indexOf(h), sk = h.sum.skill, d = sumDmg(h);
+    per[h.id] = (per[h.id] || 0) + 1; m.k = per[h.id] - 1;
+    const dir = hi % 2 ? -1 : 1, a = G.t * 0.6 * dir + hi * 1.3 + m.k * TAU / h.sum.n, rad = 58 + (hi % 3) * 8;
+    const ox = CX + Math.cos(a) * rad, oy = CY + Math.sin(a) * rad * 0.92;
+    const rate = (fr ? 2 : 1) * (sk >= 2 ? 1.4 : 1) * (G.timeStop > 0 ? 1 : 1);
+    m.cd -= dt * rate;
+    if (h.id === 'necro') {
+      if (m.st === 0) {
+        m.x += (ox - m.x) * Math.min(1, dt * 6); m.y += (oy - m.y) * Math.min(1, dt * 6);
+        if (m.cd <= 0 && G.enemies.length) { const t = nearestEnemy(m.x, m.y, S.range); if (t) { m.st = 1; m.tg = t; } }
+      } else if (m.st === 1) {
+        const t = m.tg; if (!t || t.dead) m.st = 2; else {
+          const dx = t.x - m.x, dy = t.y - m.y, dd = Math.hypot(dx, dy) || 1; m.face = dx >= 0 ? 1 : -1;
+          m.x += dx / dd * 210 * dt; m.y += dy / dd * 210 * dt; P(m.x, m.y, R(-6, 6), R(-6, 6), 0.3, '#6dff8a', 1, 0, true);
+          if (dd < t.r + 5) { dmgE(t, d * 1.8, { col: S.col }); burst(m.x, m.y, 8, '#6dff8a', 70, 0.4, 1, 0, true); sfx('skull'); if (sk >= 1) boom(m.x, m.y, 20, d * 0.8, '#6dff8a', { noproc: true, quiet: true, depth: 1 }); m.st = 2; m.cd = S.cd; }
+        }
+      } else {
+        const dx = ox - m.x, dy = oy - m.y, dd = Math.hypot(dx, dy) || 1; m.x += dx / dd * 230 * dt; m.y += dy / dd * 230 * dt; if (dd < 8) m.st = 0;
+      }
+    } else {
+      m.x += (ox - m.x) * Math.min(1, dt * 6); m.y += (oy - m.y) * Math.min(1, dt * 6);
+      if (m.cd <= 0 && G.enemies.length) {
+        const t = nearestEnemy(m.x, m.y, S.range + 2 * h.sum.lvl);
+        if (t) {
+          m.face = t.x >= m.x ? 1 : -1; m.cd = S.cd;
+          if (h.id === 'chrono') {
+            ring(m.x, m.y, 56, '#41e8d6', 0.4); sfx('chrono');
+            inCircle(m.x, m.y, 56, e => dmgE(e, d * (sk >= 1 ? 1.2 : 0.6), { slow: 0.65, slowT: 1.6, noproc: true, col: '#41e8d6' }));
+          } else minionShoot(m, t, d, S, sk);
+        }
+      }
+    }
+    if (sk >= 3) {
+      m.nova -= dt * (fr ? 2 : 1);
+      if (m.nova <= 0 && G.enemies.length) { m.nova = 6; ring(m.x, m.y, 50, S.col, 0.5); boom(m.x, m.y, 46, d * 4, S.col, { noproc: true, quiet: true, depth: 1 }); burst(m.x, m.y, 14, S.col, 90, 0.5, 1, 0, true); sfx('boom'); }
+    }
+  }
+}
+function drawMinion(m, t) {
+  const S = SUMMONS[m.h.id], sp = SUM_SPR[S.spr], sk = m.h.sum.skill, bob = Math.round(Math.sin(t * 6 + m.k * 2) * 1);
+  drawSpr(ctx, sp, m.x, m.y + bob, { flip: m.face < 0 });
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (G.frenzy > 0 ? 0.9 : 0.45) + 0.15 * sk;
+  const g = G.frenzy > 0 ? 9 : 6 + sk; ctx.drawImage(glow(G.frenzy > 0 ? '#ff9bf2' : S.col, g), Math.round(m.x - g), Math.round(m.y + bob - g)); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  if (sk >= 3 && ((t * 8 + m.k) | 0) % 3 === 0) { ctx.fillStyle = S.col; ctx.fillRect(Math.round(m.x - 5), Math.round(m.y - 5 + bob), 1, 1); ctx.fillRect(Math.round(m.x + 5), Math.round(m.y + 4 + bob), 1, 1); }
+}
+
+// ---------- rune pickups ----------
+function spawnPickup(x, y) {
+  if (G.pickups.length > 12) return;
+  let tot = 0; for (const k in PICKUPS) tot += PICKUPS[k].w; let p = rnd() * tot, kind = 'power';
+  for (const k in PICKUPS) { p -= PICKUPS[k].w; if (p <= 0) { kind = k; break; } }
+  G.pickups.push({ x, y, kind, t: 0, ph: rnd() * TAU });
+  P(x, y, 0, 0, 0.3, PICKUPS[kind].c, 4, 0, true);
+}
+function collectPickup(k) {
+  k.dead = true; sfx('card'); const def = PICKUPS[k.kind];
+  burst(k.x, k.y, 14, def.c, 80, 0.6, 1, 0, true); ring(k.x, k.y, 20, def.c, 0.4);
+  if (k.kind === 'frenzy') { G.frenzy = 12; UI.msg('FRENZY! FAMILIARS x2 SPEED', def.c); return; }
+  const w = k.kind === 'power' ? 'pwr' : k.kind === 'legion' ? 'num' : 'skill';
+  const key = w === 'pwr' ? 'lvl' : w === 'num' ? 'n' : 'skill', max = w === 'pwr' ? SUM_MAX.lvl : w === 'num' ? SUM_MAX.n : SUM_MAX.skill;
+  let c = G.heroes.filter(h => h.sum[key] < max);
+  if (!c.length) { const g = 40 + G.wave * 3; G.gold += g; UI.msg('RUNE -> +' + g + ' GOLD', def.c); return; }
+  const h = c[Math.floor(rnd() * c.length)]; applySum(h, w);
+  const S = SUMMONS[h.id];
+  UI.msg(S.name.toUpperCase() + (w === 'pwr' ? ' POWER UP!' : w === 'num' ? ' +1 FAMILIAR!' : ': ' + S.sk[h.sum.skill - 1].toUpperCase()), def.c);
+}
+function collectAt(x, y, r) {
+  let got = false;
+  for (const k of G.pickups) if (!k.dead && (k.x - x) ** 2 + (k.y - y) ** 2 < r * r) { collectPickup(k); got = true; }
+  return got;
+}
+function updPickups(dt) {
+  const L = G.pickups;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const k = L[i]; k.t += dt;
+    const dx = CX - k.x, dy = CY - k.y, d = Math.hypot(dx, dy) || 1, sp = 14 + Math.min(20, k.t * 2);
+    k.x += dx / d * sp * dt + Math.cos(k.t * 3 + k.ph) * 6 * dt; k.y += dy / d * sp * dt + Math.sin(k.t * 3 + k.ph) * 6 * dt;
+    if (rnd() < 0.2) P(k.x + R(-2, 2), k.y + R(-2, 2), 0, R(5, 15), 0.4, PICKUPS[k.kind].c, 1, 0, true);
+    if (G.mouseIn && (k.x - G.mx) ** 2 + (k.y - G.my) ** 2 < 150) collectPickup(k);
+    else if (d < EARTH_R + 4) collectPickup(k);
+    if (k.dead) { L[i] = L[L.length - 1]; L.pop(); }
+  }
+}
+function drawPickup(k, t) {
+  const c = PICKUPS[k.kind].c, x = Math.round(k.x), y = Math.round(k.y + Math.sin(t * 5 + k.ph) * 1.5), pulse = 0.6 + 0.4 * Math.sin(t * 8 + k.ph);
+  ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = pulse; ctx.drawImage(glow(c, 10), x - 10, y - 10); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000'; ctx.fillRect(x - 4, y - 1, 9, 3); ctx.fillRect(x - 1, y - 4, 3, 9); ctx.fillRect(x - 3, y - 3, 7, 7);
+  ctx.fillStyle = c; ctx.fillRect(x - 3, y - 2, 7, 5); ctx.fillRect(x - 2, y - 3, 5, 7);
+  ctx.fillStyle = '#fff'; ctx.fillRect(x - 1, y - 2, 2, 2);
 }
 
 // ---------- render ----------
@@ -623,7 +772,9 @@ function render(t) {
   // enemies
   const En = G.enemies; for (let i = 0; i < En.length; i++) if (!En[i].boss) drawEnemy(En[i], t);
   for (let i = 0; i < En.length; i++) if (En[i].boss) drawEnemy(En[i], t);
+  for (const m of G.minions) drawMinion(m, t);
   G.heroes.forEach(h => drawHero(h, t));
+  for (const k of G.pickups) drawPickup(k, t);
   // enemy bolts
   for (const b of G.eprojs) {
     const x = Math.round(b.x), y = Math.round(b.y);
