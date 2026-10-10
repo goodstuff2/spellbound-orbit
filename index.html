@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Spellbound Orbit — Wizards Defend the Earth</title>
+<meta name="description" content="A pixel-art magical tower defense. Command wizards in orbit, unleash over-the-top spells, and defend the Earth through 30 waves.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 fill=%27%231b1230%27/%3E%3Ccircle cx=%278%27 cy=%278%27 r=%275%27 fill=%27%232a6fd6%27/%3E%3Crect x=%274%27 y=%277%27 width=%275%27 height=%273%27 fill=%27%233aaa4e%27/%3E%3Crect x=%2711%27 y=%272%27 width=%272%27 height=%272%27 fill=%27%23ffe14a%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv" width="480" height="270"></canvas>
+
+  <div id="hud" class="hide">
+    <div id="topbar">
+      <div id="earthbox"><span class="lbl">EARTH</span><div class="bar"><div id="hpfill"></div><div id="shfill"></div><span id="hptxt"></span></div></div>
+      <div id="wavebox">WAVE <b id="wavetxt">1</b><span id="wavemax">/30</span></div>
+      <div id="goldbox"><i class="coin"></i><b id="goldtxt">0</b></div>
+      <div id="btns">
+        <button id="b-auto" title="Auto-cast spells (A)">AUTO</button>
+        <button id="b-speed" title="Game speed (G)">1x</button>
+        <button id="b-shop" title="Wizards &amp; shop (B)">SHOP</button>
+        <button id="b-pause" title="Pause (P / Esc)">II</button>
+        <button id="b-snd" title="Sound (M)">SND</button>
+      </div>
+    </div>
+    <div id="relics"></div>
+    <div id="bossbar" class="hide"><span id="bossname"></span><div class="bar"><div id="bossfill"></div></div></div>
+    <div id="aimhint" class="hide">CLICK TO CAST &middot; ESC CANCEL</div>
+    <div id="toast" class="hide"></div>
+    <div id="spellbar"></div>
+    <button id="ultbtn"><div id="ultfill"></div><span id="ulttxt">CATACLYSM</span><em>F</em></button>
+    <button id="startbtn">START WAVE <em>SPACE</em></button>
+    <div id="casttxt"></div>
+    <div id="banner"></div>
+  </div>
+
+  <div id="shop" class="panel hide"></div>
+  <div id="overlay" class="hide"></div>
+</div>
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script src="js/spells.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
